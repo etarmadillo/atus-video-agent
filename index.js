@@ -1,9 +1,25 @@
 const Camera = require('./camera');
+const axios = require('axios').default;
 
+const config = require('./config.json');
 
-let config = {
-  source: "rtsp://admin:Dahua12345@192.168.1.101:554/cam/realmonitor?channel=1&subtype=1",
-  destination: "rtmp://192.168.2.1:1935/live/AZJ768_1?sign=4759971206-c5609ed87d97cae8040b3377165209f2"
+async function getLogin() {
+  const response = await axios.post(config.loginEndpoint, config.credentials);
+  return response;
 }
 
-let camUno = new Camera(config);
+(async function (config) {
+  let log = await getLogin()
+  if (log.status = 200) {
+    let streamPaths = log.data.streams;
+    if (streamPaths.length > 0) {
+      streamPaths = streamPaths.map(x => `${config.streamEndpoint}${x}`);
+      this.cameras = config.sources.map((cam, i) => new Camera({
+        source: cam.endpoint,
+        audio: cam.audio,
+        destination: streamPaths[i],
+        camera: streamPaths[i].substring(config.streamEndpoint.length + 6, config.streamEndpoint.length + 14)
+      }))
+    }
+  }
+})(config);

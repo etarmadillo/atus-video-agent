@@ -5,6 +5,8 @@ class Camera extends EventEmitter {
     constructor(config) {
         super();
         this.config = config;
+        this.name = config.camera;
+        this.debug = require('debug')(config.camera);
         this.lastMessage = '';
         this.directory = __dirname;
         this.camDir = path.join(this.directory, 'captures');
@@ -69,7 +71,7 @@ class Camera extends EventEmitter {
                         this.snapshot();
                     }, this.maxTimeVideo);
                 } else {
-                    message = `Startup... ${this.pid}`;
+                    message = `Startup...\tPID:\t${this.pid}`;
                     clearInterval(this.monitorId);
                     this.monitorId = setInterval(() => {
                         this.error = true;
@@ -82,7 +84,7 @@ class Camera extends EventEmitter {
                 if (message !== this.lastMessage) {
                     this.error = false;
                     this.lastMessage = message;
-                    console.log(message)
+                    console.log(`Camera:\t${this.name}\t${message}`)
                 };
             } catch (error) {
 
@@ -101,7 +103,7 @@ class Camera extends EventEmitter {
 
     camSnap() {
         let now = new Date().toLocaleString().replace(/:/g, '');
-        let picPath = path.join('.', 'captures', `${now}.jpg`)
+        let picPath = path.join('.', 'captures', `${this.name}_${now}.jpg`)
         console.log("Taking Snap", picPath);
         return spawn("ffmpeg", ["-i", this.config.source, "-rtsp_transport", "tcp", "-f", "image2", "-vframes", "1", "-pix_fmt", "yuvj420p", picPath]);
     }
