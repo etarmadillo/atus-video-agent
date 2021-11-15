@@ -1,0 +1,15 @@
+{
+    "loginEndpoint": "https://atus.etarmadillo.com/login",
+    "streamEndpoint": "rtmp://localhost:1935",
+    "capturesEndpoint": "http://localhost/capture",
+    "credentials": {
+        "username": "pi05",
+        "password": "12345"
+    },
+    "sources": [
+        {
+            "endpoint": "rtsp://admin:Dahua12345@192.168.1.101:554/cam/realmonitor?channel=1&subtype=1",
+            "audio": 0
+        }
+    ]
+}
