@@ -3,7 +3,7 @@
     "streamEndpoint": "rtmp://atus.etarmadillo.com:1935",
     "capturesEndpoint": "https://atus.etarmadillo.com/capture",
     "credentials": {
-        "username": "pi05",
+        "username": "pi02",
         "password": "12345"
     },
     "sources": [

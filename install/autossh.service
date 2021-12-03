@@ -1,0 +1,12 @@
+[Unit]
+Description=Keeps a tunnel to 'atus.etarmadillo.com' open
+After=network.target
+
+[Service]
+User=pi
+Restart=always
+RestartSec=10
+ExecStart=/usr/bin/autossh -N -R 43012:localhost:22 ubuntu@atus.etarmadillo.com
+
+[Install]
+WantedBy=multi-user.target

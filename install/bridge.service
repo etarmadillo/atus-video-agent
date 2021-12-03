@@ -1,0 +1,11 @@
+[Unit]
+Description=Makes an eth0 wwan tunnel
+After=network.target
+
+[Service]
+Restart=on-failure
+RestartSec=5
+ExecStart=/home/pi/agent-cam/rpi-bridge.sh
+
+[Install]
+WantedBy=multi-user.target
