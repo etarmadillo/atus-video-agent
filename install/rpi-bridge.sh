@@ -1,45 +1,65 @@
-#!/usr/bin/env bash
+#!/usr/bin/bash
 
-if /sbin/ethtool wwan0 | grep -q "Link detected: yes"; then
-	echo "Online"
+ping -c 1 google.com 2> /dev/null 1> /dev/null
+inte=$?
 
-	# Set up transparent bridge eth1->eth0
-	#  - eth0 (built-in): attach to TT DSL router
-	#  - wwan0 (UBS)     : attach to internal switch
-	#
-	# This should be executed at system startup.
-	# On Raspberry PI debian add this line to:
-	# /etc/rc.local:
-	#   bash /path_to_this_file
+ping -c 1 192.168.1.101 2> /dev/null 1> /dev/null
+camu=$?
+if [ $inte -eq 0 ] && [ $camu -eq 0 ]
+then
+	echo "Internet y Cam1"
+	exit 0
+fi
+
+ping -c 1 192.168.1.102 2> /dev/null 1> /dev/null
+camd=$?
+if [ $inte -eq 0 ] && [ $camd -eq 0 ]
+then
+	echo "Internet y Cam2"
+	exit 0
+fi
+
+ping -c 1 192.168.1.103 2> /dev/null 1> /dev/null
+camt=$?
+if [ $inte -eq 0 ] && [ $camt -eq 0 ]
+then 
+	echo "Internet y Cam3"
+	exit 0
+fi
+
+ping -c 1 192.168.1.104 2> /dev/null 1> /dev/null
+camc=$?
+if [ $inte -eq 0 ] && [ $camc -eq 0 ]
+then 
+	echo "Internet y Cam4"
+	exit 0
+fi
 
 
-	# this requires the following:
-	#   apt-get install bridge-utils
+echo "Sin Internet o càmaras"
+ifconfig eth0 down 2> /dev/null 1> /dev/null
+ifconfig eth1 down 2> /dev/null 1> /dev/null
+ifconfig br0 down 2> /dev/null 1> /dev/null
+brctl delbr br0 2> /dev/null 1> /dev/null
+ifconfig eth0 0.0.0.0 promisc up
+ifconfig eth1 0.0.0.0 promisc up
 
-	echo "$0: setting eth0-eth1 bridge"
+brctl addbr br0
+brctl addif br0 eth0
+brctl addif br0 eth1
 
-	## shutdown everything first
-	ifconfig eth0 down
-	ifconfig wwan0 down
+ifconfig br0 192.168.1.111 netmask 255.255.255.0 up
+route add default gw 192.168.1.1 dev br0
+systemctl restart dhcpcd
 
 
-	## set interfaces to promiscuous mode
-	ifconfig eth0 0.0.0.0 promisc up
-	ifconfig wwan0 0.0.0.0 promisc up
-
-	## add both interfaces to the virtual bridge network
-	brctl addbr br0
-	brctl addif br0 eth0
-	brctl addif br0 wwan0
-
-	## optional: configure an ip to the bridge to allow remote access
-	ifconfig br0 192.168.1.111 netmask 255.255.255.0 up
-	route add default gw 192.168.1.1 dev br0
-	echo "nameserver 8.8.8.8" > /etc/resolv.conf
-
-	echo "$0: done bridge"
+cat /sys/class/net/br0/operstate 1> /dev/null 2> /dev/null
+	
+if [ $? -eq 0 ]
+then
+	echo "Puente Creado"
 	exit 0
 else
-	echo "Not Online"
+	echo "Error Creando Puente"
 	exit 1
 fi
