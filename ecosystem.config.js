@@ -4,7 +4,7 @@ module.exports = {
       name: "cameras",
       script: "./index.js",
       max_restarts: 1000,
-      restart_delay: 500
+      restart_delay: 30
     },
     {
       name: "captures",

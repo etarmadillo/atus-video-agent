@@ -4,6 +4,7 @@ const EventEmitter = require('events');
 class Camera extends EventEmitter {
     constructor(config) {
         super();
+        console.log("Initializing camera")
         this.config = config;
         this.name = config.camera;
         this.debug = require('debug')(config.camera);
@@ -37,12 +38,11 @@ class Camera extends EventEmitter {
                 }
             });
         } catch (error) {
-
         }
-
     }
 
     video() {
+        console.log("Init Video")
         this.camera = this.camStream();
         this.camera.on('close', () => {
             this.video()
@@ -51,7 +51,7 @@ class Camera extends EventEmitter {
         this.camera.stderr.on('data', (chunk) => {
             let message = '';
             let log = chunk.toString();
-            // console.log(log);
+            console.log(log);
             try {
                 let lines = log.split("\r");
                 let lastLine = lines[lines.length - 2].split(" ").filter(x => x != " " && x != "");
@@ -93,9 +93,10 @@ class Camera extends EventEmitter {
         });
     }
 
+
     camStream() {
         let audioParams = ["-c:a", "aac", "-ar", "44100"];
-        let camParams = ["-i", this.config.source, "-rtsp_transport", "tcp", "-codec:v", "libx264", "-f", "flv", this.config.destination];
+        let camParams = ["-rtsp_transport", "tcp", "-i", this.config.source, "-codec:v", "libx264", "-crf", "30", "-f", "flv", this.config.destination];
         camParams.splice(4, 0, ...audioParams);
         // console.log(camParams);
         return spawn("ffmpeg", camParams);

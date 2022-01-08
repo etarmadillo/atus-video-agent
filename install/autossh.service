@@ -1,6 +1,6 @@
 [Unit]
 Description=Keeps a tunnel to 'atus.etarmadillo.com' open
-After=network.target
+After=network-online.target ssh.service
 
 [Service]
 User=pi

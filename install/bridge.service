@@ -3,8 +3,8 @@ Description=Makes an eth0 wwan tunnel
 After=network.target
 
 [Service]
-Restart=on-failure
-RestartSec=5
+Restart=always
+RestartSec=10
 ExecStart=/home/pi/agent-cam/rpi-bridge.sh
 
 [Install]
