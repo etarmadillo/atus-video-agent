@@ -17,29 +17,29 @@ class Camera extends EventEmitter {
         this.video();
     }
 
-    snapshot() {
-        try {
-            let snap = this.camSnap();
-            console.log(snap.pid);
-            let snapInterval = setTimeout(() => {
-                console.log('Error generating snapshot.');
-                snap.kill('SIGINT');
-                this.emit('Error generating snapshot.');
-                // throw new Error('Error generating snapshot.')
-            }, 10000);
-            snap.stderr.on('data', (chunk) => {
-                //   console.log(chunk.toString());
-                if (chunk.toString().includes('video:')) {
-                    console.log("Captura Guardada.");
-                    this.emit('Captura Guardada.');
-                    clearInterval(snapInterval);
-                } else {
-                    // debugger
-                }
-            });
-        } catch (error) {
-        }
-    }
+    // snapshot() {
+    //     try {
+    //         let snap = this.camSnap();
+    //         console.log(snap.pid);
+    //         let snapInterval = setTimeout(() => {
+    //             console.log('Error generating snapshot.');
+    //             snap.kill('SIGINT');
+    //             this.emit('Error generating snapshot.');
+    //             // throw new Error('Error generating snapshot.')
+    //         }, 10000);
+    //         snap.stderr.on('data', (chunk) => {
+    //             //   console.log(chunk.toString());
+    //             if (chunk.toString().includes('video:')) {
+    //                 console.log("Captura Guardada.");
+    //                 this.emit('Captura Guardada.');
+    //                 clearInterval(snapInterval);
+    //             } else {
+    //                 // debugger
+    //             }
+    //         });
+    //     } catch (error) {
+    //     }
+    // }
 
     video() {
         console.log("Init Video")
@@ -68,7 +68,7 @@ class Camera extends EventEmitter {
                         console.log('Restarting video streaming.');
                         this.emit('Restarting video streaming.');
                         this.camera.kill('SIGINT');
-                        this.snapshot();
+                        // this.snapshot();
                     }, this.maxTimeVideo);
                 } else {
                     message = `Startup...\tPID:\t${this.pid}`;
@@ -78,7 +78,7 @@ class Camera extends EventEmitter {
                         console.log('Restarting video streaming.')
                         this.emit('Restarting video streaming.');
                         this.camera.kill('SIGINT');
-                        this.snapshot();
+                        // this.snapshot();
                     }, this.maxTimeVideo);
                 }
                 if (message !== this.lastMessage) {
