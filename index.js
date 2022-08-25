@@ -1,6 +1,6 @@
 const Camera = require('./camera');
 
-const config = require('./configDev.json');
+const config = require('./config.json');
 
 // async function getLogin() {
 //   const response = await axios.post(config.loginEndpoint, config.credentials)
