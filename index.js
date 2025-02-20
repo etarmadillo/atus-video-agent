@@ -1,5 +1,4 @@
 const Camera = require('./camera');
-
 const config = require('./config.json');
 
 // async function getLogin() {

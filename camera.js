@@ -1,6 +1,6 @@
 const { spawn } = require('child_process');
-const path = require('path');
 const EventEmitter = require('events');
+
 class Camera extends EventEmitter {
     constructor(config) {
         super();
@@ -9,37 +9,11 @@ class Camera extends EventEmitter {
         this.name = config.camera;
         this.debug = require('debug')(config.camera);
         this.lastMessage = '';
-        this.directory = __dirname;
-        this.camDir = path.join(this.directory, 'captures');
         this.error = false;
         this.monitorId = 0;
         this.maxTimeVideo = 60000;
         this.video();
     }
-
-    // snapshot() {
-    //     try {
-    //         let snap = this.camSnap();
-    //         console.log(snap.pid);
-    //         let snapInterval = setTimeout(() => {
-    //             console.log('Error generating snapshot.');
-    //             snap.kill('SIGINT');
-    //             this.emit('Error generating snapshot.');
-    //             // throw new Error('Error generating snapshot.')
-    //         }, 10000);
-    //         snap.stderr.on('data', (chunk) => {
-    //             //   console.log(chunk.toString());
-    //             if (chunk.toString().includes('video:')) {
-    //                 console.log("Captura Guardada.");
-    //                 this.emit('Captura Guardada.');
-    //                 clearInterval(snapInterval);
-    //             } else {
-    //                 // debugger
-    //             }
-    //         });
-    //     } catch (error) {
-    //     }
-    // }
 
     video() {
         console.log("Init Video")
@@ -85,14 +59,13 @@ class Camera extends EventEmitter {
                     this.error = false;
                     this.lastMessage = message;
                     console.log(`Camera:\t${this.name}\t${message}`)
-                };
+                }
             } catch (error) {
 
             }
 
         });
     }
-
 
     camStream() {
         let audioParams = ["-c:a", "aac", "-ar", "44100"];
@@ -102,12 +75,6 @@ class Camera extends EventEmitter {
         return spawn("ffmpeg", camParams);
     }
 
-    camSnap() {
-        let now = new Date().toLocaleString().replace(/:/g, '');
-        let picPath = path.join('.', 'captures', `${this.name}_${now}.jpg`)
-        console.log("Taking Snap", picPath);
-        return spawn("ffmpeg", ["-i", this.config.source, "-rtsp_transport", "tcp", "-f", "image2", "-vframes", "1", "-pix_fmt", "yuvj420p", picPath]);
-    }
     get pid() { return this.camera.pid }
     restart() {
         this.camera.kill('SIGINT');

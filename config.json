@@ -1,7 +1,6 @@
 {
     "loginEndpoint": "https://atus.etarmadillo.com/login",
     "streamEndpoint": "rtmp://atus.etarmadillo.com:1935/live/",
-    "capturesEndpoint": "http://localhost/capture",
     "plate": "TST804",
     "sources": [
         {

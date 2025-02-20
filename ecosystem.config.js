@@ -5,12 +5,6 @@ module.exports = {
       script: "./index.js",
       max_restarts: 1000,
       restart_delay: 30
-    },
-    {
-      name: "captures",
-      script: "./fileUploader.js",
-      cron_restart: "*/5 * * * *",
-      autorestart: false
-    },
+    }
   ]
 }
