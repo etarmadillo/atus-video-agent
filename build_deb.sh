@@ -90,94 +90,107 @@ EOF
 
 echo "--- Creando scripts DEBIAN/postinst, prerm, postrm ---"
 # postinst (Después de instalar)
-# Usamos EOF sin comillas para que las variables de build_deb.sh (${APP_INSTALL_DIR}, etc.) se expandan AHORA.
-# Las variables que deben expandirse en la Pi (como PLATE_NUMBER) deben escaparse (\\$PLATE_NUMBER).
+# Usamos EOF sin comillas simples para que las variables de build_deb.sh se expandan AHORA.
+# Las variables que deben expandirse en la Pi (como PLATE_NUMBER, $1, $config_generated) deben escaparse (\\$).
 cat << EOF > "${BUILD_DIR}/DEBIAN/postinst"
 #!/bin/bash
 set -e
 
-# Variables ya expandidas por el script build_deb.sh
+# Variables expandidas por build_deb.sh
 APP_INSTALL_DIR="${APP_INSTALL_DIR}"
 SERVICE_USER="${SERVICE_USER}"
 SERVICE_GROUP="${SERVICE_GROUP}"
-# Corregido: No escapar \\$, ya que APP_INSTALL_DIR ya tiene el valor correcto
-CONFIG_FILE="${APP_INSTALL_DIR}/config.json"
+CONFIG_FILE="\${APP_INSTALL_DIR}/config.json"
+# Necesitamos el nombre del paquete aquí también para systemctl
+PACKAGE_NAME="${PACKAGE_NAME}"
 
-# Solo ejecutar en la configuración inicial o reconfiguración
-if [ "$1" = "configure" ]; then
-    # Pedir el número de placa si el archivo de configuración no existe
-    if [ ! -f "$CONFIG_FILE" ]; then
-        echo "Configurando ${PACKAGE_NAME}..."
+config_generated=false
+# --- Siempre verificar si config.json existe y generarlo si falta ---
+# Usar \\$CONFIG_FILE para evaluar en la máquina destino
+if [ ! -f "\\$CONFIG_FILE" ]; then
+    echo "Configuración no encontrada en \\$CONFIG_FILE. Generando..."
+    # Asegurarse de que la terminal esté disponible para 'read' (-t 0 comprueba si stdin es una terminal)
+    if [ -t 0 ]; then
+        # Usar \\$PLATE_NUMBER para la variable leída en la máquina destino
         read -p "Introduce el número de placa para este vehículo: " PLATE_NUMBER
 
-        if [ -z "$PLATE_NUMBER" ]; then
+        if [ -z "\\$PLATE_NUMBER" ]; then
             echo "Error: El número de placa no puede estar vacío." >&2
             exit 1
         fi
 
-        echo "Generando $CONFIG_FILE con placa: $PLATE_NUMBER..."
-        # Corregido: Redirección a "$CONFIG_FILE"
-        # Corregido: Eliminar \\ antes de \" dentro del JSON
-        cat << EOCONFIG > "$CONFIG_FILE"
+        echo "Generando \\$CONFIG_FILE con placa: \\$PLATE_NUMBER..."
+        # Usamos EOCONFIG sin comillas para permitir la expansión de \\$PLATE_NUMBER en la Pi
+        cat << EOCONFIG > "\\$CONFIG_FILE"
 {
     "loginEndpoint": "https://atus.etarmadillo.com/login",
     "streamEndpoint": "rtmp://atus.etarmadillo.com:1935/live/",
-    "plate": "$PLATE_NUMBER",
+    "plate": "\\$PLATE_NUMBER",
     "sources": [
-        {
-            "endpoint": "rtsp://admin:Dahua12345@192.168.1.101:554/cam/realmonitor?channel=1&subtype=1",
-            "audio": 0
-        },
-        {
-            "endpoint": "rtsp://admin:Dahua12345@192.168.1.102:554/cam/realmonitor?channel=1&subtype=1",
-            "audio": 0
-        },
-        {
-            "endpoint": "rtsp://admin:Dahua12345@192.168.1.103:554/cam/realmonitor?channel=1&subtype=1",
-            "audio": 0
-        },
-        {
-            "endpoint": "rtsp://admin:Dahua12345@192.168.1.104:554/cam/realmonitor?channel=1&subtype=1",
-            "audio": 0
-        }
+        { "endpoint": "rtsp://admin:Dahua12345@192.168.1.101:554/cam/realmonitor?channel=1&subtype=1", "audio": 0 },
+        { "endpoint": "rtsp://admin:Dahua12345@192.168.1.102:554/cam/realmonitor?channel=1&subtype=1", "audio": 0 },
+        { "endpoint": "rtsp://admin:Dahua12345@192.168.1.103:554/cam/realmonitor?channel=1&subtype=1", "audio": 0 },
+        { "endpoint": "rtsp://admin:Dahua12345@192.168.1.104:554/cam/realmonitor?channel=1&subtype=1", "audio": 0 }
     ]
 }
 EOCONFIG
 
-        echo "Estableciendo permisos para $CONFIG_FILE..."
-        # Corregido: Usar comillas
-        chown "${SERVICE_USER}:${SERVICE_GROUP}" "$CONFIG_FILE"
-        chmod 640 "$CONFIG_FILE"
+        echo "Estableciendo permisos para \\$CONFIG_FILE..."
+        # Usar comillas y \\$ para evaluar en destino
+        chown "\${SERVICE_USER}:\${SERVICE_GROUP}" "\\$CONFIG_FILE"
+        chmod 640 "\\$CONFIG_FILE"
+        config_generated=true
+    else
+        echo "Advertencia: No se puede pedir el número de placa (no hay terminal interactiva)." >&2
+        echo "            Crea /opt/atus-video-agent/config.json manualmente." >&2
+        # Considera si salir con error aquí: exit 1
     fi
+fi
+# --- Fin de la generación de config ---
 
+restart_needed=false
+# --- Acciones específicas de configuración/actualización ---
+# Usar \\$1 para evaluar en destino
+if [ "\\$1" = "configure" ] || [ "\\$1" = "upgrade" ]; then
     echo "Recargando systemd daemon..."
     systemctl daemon-reload
-    echo "Habilitando servicio ${PACKAGE_NAME}..."
-    systemctl enable ${PACKAGE_NAME}.service
-    echo "Reiniciando servicio ${PACKAGE_NAME}..."
-    systemctl restart ${PACKAGE_NAME}.service || true
+    echo "Habilitando servicio \${PACKAGE_NAME}..."
+    systemctl enable \${PACKAGE_NAME}.service
+    restart_needed=true # Marcar para reiniciar en configure/upgrade
 fi
+
+# Reiniciar si se generó la config O si estamos en configure/upgrade
+# Usar \\$config_generated y \\$restart_needed
+if [ "\\$config_generated" = true ] || [ "\\$restart_needed" = true ]; then
+    echo "Reiniciando servicio \${PACKAGE_NAME}..."
+    # Usar restart para asegurarse de que inicie si no estaba corriendo
+    systemctl restart \${PACKAGE_NAME}.service || true
+fi
+
 exit 0
 EOF
 
 # prerm (Antes de quitar)
-cat << EOF > "${BUILD_DIR}/DEBIAN/prerm"
+# Usar comillas simples en EOF para evitar expansión local de $1, etc.
+cat << 'EOF' > "${BUILD_DIR}/DEBIAN/prerm"
 #!/bin/bash
 set -e
-if [ "$1" = "remove" ] || [ "$1" = "upgrade" ]; then
-    echo "Stopping ${PACKAGE_NAME} service..."
-    systemctl stop ${PACKAGE_NAME}.service || true
-    echo "Disabling ${PACKAGE_NAME} service..."
-    systemctl disable ${PACKAGE_NAME}.service || true
+# PACKAGE_NAME se expandirá aquí desde build_deb.sh
+PACKAGE_NAME="${PACKAGE_NAME}"
+if [ "\$1" = "remove" ] || [ "\$1" = "upgrade" ]; then
+    echo "Stopping \${PACKAGE_NAME} service..."
+    systemctl stop \${PACKAGE_NAME}.service || true
+    echo "Disabling \${PACKAGE_NAME} service..."
+    systemctl disable \${PACKAGE_NAME}.service || true
 fi
 exit 0
 EOF
 
 # postrm (Después de quitar)
-cat << EOF > "${BUILD_DIR}/DEBIAN/postrm"
+cat << 'EOF' > "${BUILD_DIR}/DEBIAN/postrm"
 #!/bin/bash
 set -e
-if [ "$1" = "purge" ] || [ "$1" = "remove" ]; then
+if [ "\$1" = "purge" ] || [ "\$1" = "remove" ]; then
      echo "Reloading systemd daemon after removal..."
      systemctl daemon-reload || true
 fi
