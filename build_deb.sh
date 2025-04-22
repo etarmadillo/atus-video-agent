@@ -26,7 +26,7 @@ APP_INSTALL_DIR="${INSTALL_DIR_BASE}/${PACKAGE_NAME}"
 # Directorio temporal para construir la estructura del paquete
 BUILD_DIR="${PACKAGE_NAME}_deb_build"
 # Nombre final del paquete .deb
-DEB_FILENAME="${PACKAGE_NAME}_${PACKAGE_VERSION}_${ARCHITECTURE}.deb"
+DEB_FILENAME="${PACKAGE_NAME}_${ARCHITECTURE}.deb"
 
 echo "--- Limpiando entorno anterior ---"
 rm -rf "$BUILD_DIR" "$DEB_FILENAME"
