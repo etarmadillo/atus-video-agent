@@ -103,27 +103,27 @@ SERVICE_GROUP="${SERVICE_GROUP}"
 CONFIG_FILE="${APP_INSTALL_DIR}/config.txt"
 PACKAGE_NAME="${PACKAGE_NAME}"
 
-# --- Línea de depuración --- 
-echo "DEBUG: CONFIG_FILE is '$CONFIG_FILE'"
+# --- Línea de depuración (mantenerla por ahora) --- 
+echo "DEBUG: CONFIG_FILE is '\$CONFIG_FILE'"
 
 config_generated=false
 # --- Siempre verificar si config.txt existe y generarlo si falta ---
-if [ ! -f "$CONFIG_FILE" ]; then
-    echo "Configuración no encontrada en $CONFIG_FILE. Generando..."
+if [ ! -f "\$CONFIG_FILE" ]; then
+    echo "Configuración no encontrada en \$CONFIG_FILE. Generando..."
     if [ -t 0 ]; then
         read -p "Introduce el número de placa para este vehículo: " PLATE_NUMBER
 
-        if [ -z "$PLATE_NUMBER" ]; then
+        if [ -z "\$PLATE_NUMBER" ]; then
             echo "Error: El número de placa no puede estar vacío." >&2
             exit 1
         fi
 
-        echo "Generando $CONFIG_FILE con placa: $PLATE_NUMBER..."
-        cat << EOTXT > "$CONFIG_FILE"
+        echo "Generando \$CONFIG_FILE con placa: \$PLATE_NUMBER..."
+        cat << EOTXT > "\$CONFIG_FILE"
 # Configuration for ATUS Video Agent
 loginEndpoint=https://atus.etarmadillo.com/login
 streamEndpoint=rtmp://atus.etarmadillo.com:1935/live/
-plate=$PLATE_NUMBER
+plate=\$PLATE_NUMBER
 # Sources (parsed by index.js)
 source_1_endpoint=rtsp://admin:Dahua12345@192.168.1.101:554/cam/realmonitor?channel=1&subtype=1
 source_1_audio=0
@@ -135,9 +135,9 @@ source_4_endpoint=rtsp://admin:Dahua12345@192.168.1.104:554/cam/realmonitor?chan
 source_4_audio=0
 EOTXT
 
-        echo "Estableciendo permisos para $CONFIG_FILE..."
-        chown "${SERVICE_USER}:${SERVICE_GROUP}" "$CONFIG_FILE"
-        chmod 640 "$CONFIG_FILE"
+        echo "Estableciendo permisos para \$CONFIG_FILE..."
+        chown "${SERVICE_USER}:${SERVICE_GROUP}" "\$CONFIG_FILE"
+        chmod 640 "\$CONFIG_FILE"
         config_generated=true
     else
         echo "Advertencia: No se puede pedir el número de placa (no hay terminal interactiva)." >&2
@@ -148,7 +148,7 @@ fi
 
 restart_needed=false
 # --- Acciones específicas de configuración/actualización ---
-if [ "$1" = "configure" ] || [ "$1" = "upgrade" ]; then
+if [ "\$1" = "configure" ] || [ "\$1" = "upgrade" ]; then
     echo "Recargando systemd daemon..."
     systemctl daemon-reload
     echo "Habilitando servicio ${PACKAGE_NAME}..."
@@ -157,7 +157,7 @@ if [ "$1" = "configure" ] || [ "$1" = "upgrade" ]; then
 fi
 
 # Reiniciar si se generó la config O si estamos en configure/upgrade
-if [ "$config_generated" = true ] || [ "$restart_needed" = true ]; then
+if [ "\$config_generated" = true ] || [ "\$restart_needed" = true ]; then
     echo "Reiniciando servicio ${PACKAGE_NAME}..."
     systemctl restart ${PACKAGE_NAME}.service || true
 fi
@@ -172,8 +172,8 @@ cat << EOF > "${BUILD_DIR}/DEBIAN/prerm"
 set -e
 # PACKAGE_NAME es expandido AHORA por build_deb.sh
 PACKAGE_NAME="${PACKAGE_NAME}"
-# \$1 se evalúa en la Pi
-if [ "$1" = "remove" ] || [ "$1" = "upgrade" ]; then
+# Corregido: Escapar \$1 y usar comillas
+if [ "\$1" = "remove" ] || [ "\$1" = "upgrade" ]; then
     echo "Stopping ${PACKAGE_NAME} service..."
     systemctl stop ${PACKAGE_NAME}.service || true
     echo "Disabling ${PACKAGE_NAME} service..."
@@ -187,8 +187,8 @@ EOF
 cat << EOF > "${BUILD_DIR}/DEBIAN/postrm"
 #!/bin/bash
 set -e
-# \$1 se evalúa en la Pi
-if [ "$1" = "purge" ] || [ "$1" = "remove" ]; then
+# Corregido: Escapar \$1 y usar comillas
+if [ "\$1" = "purge" ] || [ "\$1" = "remove" ]; then
      echo "Reloading systemd daemon after removal..."
      systemctl daemon-reload || true
 fi
