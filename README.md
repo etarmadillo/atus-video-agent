@@ -25,7 +25,7 @@ El proceso de instalación del paquete `.deb` intentará instalar estas dependen
 La forma recomendada de instalar `atus-video-agent` es usando el paquete `.deb` proporcionado en las [Releases de GitHub](https://github.com/etarmadillo/atus-video-agent/releases).
 
 1.  **Identifica la última release:** Ve a la [página de Releases](https://github.com/etarmadillo/atus-video-agent/releases) y busca la última versión (ej. `v1.0.0`).
-2.  **Copia el enlace del archivo `.deb`:** Encuentra el archivo `.deb` correspondiente a tu arquitectura (ej. `atus-video-agent_1.0.0_arm64.deb` para Raspberry Pi 4/5 de 64 bits), haz clic derecho y copia la dirección del enlace.
+2.  **Copia el enlace del archivo `.deb`:** Encuentra el archivo `.deb` correspondiente a tu arquitectura (ej. `atus-video-agent_arm64.deb` para Raspberry Pi 4/5 de 64 bits), haz clic derecho y copia la dirección del enlace.
 3.  **Conéctate a tu Raspberry Pi:** Usa SSH o abre una terminal local.
 4.  **Actualiza la lista de paquetes:**
     ```bash
@@ -37,15 +37,20 @@ La forma recomendada de instalar `atus-video-agent` es usando el paquete `.deb` 
     ```
     *Ejemplo:*
     ```bash
-    wget https://github.com/etarmadillo/atus-video-agent/releases/download/v1.0.0/atus-video-agent_1.0.0_arm64.deb
+    wget https://github.com/etarmadillo/atus-video-agent/releases/download/v1.0.0/atus-video-agent_arm64.deb
     ```
 6.  **Instala el paquete:** Reemplaza con el nombre del archivo descargado. `apt` instalará `nodejs` y `ffmpeg` si es necesario.
     ```bash
-    sudo apt install ./atus-video-agent_1.0.0_arm64.deb
+    sudo apt install ./atus-video-agent_arm64.deb
     ```
     Confirma la instalación presionando `Y` cuando se te solicite.
 
 La instalación configurará e iniciará automáticamente el servicio `systemd`.
+
+**(Opcional) Una vez confirmada la instalación, puedes eliminar el archivo `.deb` descargado para liberar espacio:**
+```bash
+rm ./atus-video-agent_1.0.0_arm64.deb # Reemplaza con el nombre del archivo descargado
+```
 
 ## Configuración
 
