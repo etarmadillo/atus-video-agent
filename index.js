@@ -12,8 +12,8 @@ const config = require('./config.json');
     ({
       name: `${config.plate}_${ind + 1}`,
       src: src.endpoint,
-      dest: `${config.streamEndpoint}${config.plate}_${ind + 1}`,
-      audio: !!src.audio 
+      dest: `${config.streamEndpoint}${config.plate}_${ind}`,
+      audio: !!src.audio
     })
     );
     this.cameras = streamPaths.map((cam, i) => new Camera({

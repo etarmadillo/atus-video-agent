@@ -68,10 +68,20 @@ class Camera extends EventEmitter {
     }
 
     camStream() {
-        let audioParams = ["-c:a", "aac", "-ar", "44100"];
-        let camParams = ["-rtsp_transport", "tcp", "-i", this.config.source, "-c:v", "copy", "-an", "-f", "flv", this.config.destination];
-        camParams.splice(4, 0, ...audioParams);
-        // console.log(camParams);
+        let camParams = [
+            "-rtsp_transport", "tcp",
+            "-fflags", "+nobuffer",
+            "-i", this.config.source,
+            "-vf", "scale=640:360",
+            "-c:v", "libx264",
+            "-preset", "veryfast",
+            "-tune", "zerolatency",
+            "-b:v", "159k",
+            "-r", "15",
+            "-an",
+            "-f", "flv",
+            this.config.destination
+        ];
         return spawn("ffmpeg", camParams);
     }
 
