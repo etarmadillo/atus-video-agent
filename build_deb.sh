@@ -90,75 +90,70 @@ EOF
 
 echo "--- Creando scripts DEBIAN/postinst, prerm, postrm ---"
 # postinst (Después de instalar)
-# Usamos EOF sin comillas para que las variables de build_deb.sh (${APP_INSTALL_DIR}, ${SERVICE_USER}, etc.) se expandan AHORA.
-# Las variables que deben expandirse en la Pi (como PLATE_NUMBER) deben escaparse (\$PLATE_NUMBER).
+# Usamos EOF sin comillas para que las variables de build_deb.sh (${APP_INSTALL_DIR}, etc.) se expandan AHORA.
+# Las variables que deben expandirse en la Pi (como PLATE_NUMBER) deben escaparse (\\$PLATE_NUMBER).
 cat << EOF > "${BUILD_DIR}/DEBIAN/postinst"
 #!/bin/bash
 set -e
 
-# Definir la ruta de instalación y usuario/grupo aquí directamente
-# porque las variables del script build_deb.sh no estarán disponibles
-# cuando este script se ejecute en la máquina de destino.
+# Variables ya expandidas por el script build_deb.sh
 APP_INSTALL_DIR="${APP_INSTALL_DIR}"
 SERVICE_USER="${SERVICE_USER}"
 SERVICE_GROUP="${SERVICE_GROUP}"
-CONFIG_FILE="\${APP_INSTALL_DIR}/config.json" # Escapar el $ inicial
+# Corregido: No escapar \\$, ya que APP_INSTALL_DIR ya tiene el valor correcto
+CONFIG_FILE="${APP_INSTALL_DIR}/config.json"
 
 # Solo ejecutar en la configuración inicial o reconfiguración
-if [ "\$1" = "configure" ]; then
+if [ "$1" = "configure" ]; then
     # Pedir el número de placa si el archivo de configuración no existe
-    if [ ! -f "\${CONFIG_FILE}" ]; then
+    if [ ! -f "$CONFIG_FILE" ]; then
         echo "Configurando ${PACKAGE_NAME}..."
-        # Pedir el número de placa
         read -p "Introduce el número de placa para este vehículo: " PLATE_NUMBER
 
-        # Validar que no esté vacío (opcional, pero recomendado)
-        if [ -z "\$PLATE_NUMBER" ]; then
+        if [ -z "$PLATE_NUMBER" ]; then
             echo "Error: El número de placa no puede estar vacío." >&2
             exit 1
         fi
 
-        echo "Generando \${CONFIG_FILE} con placa: \$PLATE_NUMBER..."
-        # Crear el archivo config.json dinámicamente
-        # Escapar las comillas dobles dentro del JSON y el signo $ de PLATE_NUMBER
-        cat << EOCONFIG > "\${CONFIG_FILE}"
+        echo "Generando $CONFIG_FILE con placa: $PLATE_NUMBER..."
+        # Corregido: Redirección a "$CONFIG_FILE"
+        # Corregido: Eliminar \\ antes de \" dentro del JSON
+        cat << EOCONFIG > "$CONFIG_FILE"
 {
-    \"loginEndpoint\": \"https://atus.etarmadillo.com/login\",
-    \"streamEndpoint\": \"rtmp://atus.etarmadillo.com:1935/live/\",
-    \"plate\": \"\$PLATE_NUMBER\",
-    \"sources\": [
+    "loginEndpoint": "https://atus.etarmadillo.com/login",
+    "streamEndpoint": "rtmp://atus.etarmadillo.com:1935/live/",
+    "plate": "$PLATE_NUMBER",
+    "sources": [
         {
-            \"endpoint\": \"rtsp://admin:Dahua12345@192.168.1.101:554/cam/realmonitor?channel=1&subtype=1\",
-            \"audio\": 0
+            "endpoint": "rtsp://admin:Dahua12345@192.168.1.101:554/cam/realmonitor?channel=1&subtype=1",
+            "audio": 0
         },
         {
-            \"endpoint\": \"rtsp://admin:Dahua12345@192.168.1.102:554/cam/realmonitor?channel=1&subtype=1\",
-            \"audio\": 0
+            "endpoint": "rtsp://admin:Dahua12345@192.168.1.102:554/cam/realmonitor?channel=1&subtype=1",
+            "audio": 0
         },
         {
-            \"endpoint\": \"rtsp://admin:Dahua12345@192.168.1.103:554/cam/realmonitor?channel=1&subtype=1\",
-            \"audio\": 0
+            "endpoint": "rtsp://admin:Dahua12345@192.168.1.103:554/cam/realmonitor?channel=1&subtype=1",
+            "audio": 0
         },
         {
-            \"endpoint\": \"rtsp://admin:Dahua12345@192.168.1.104:554/cam/realmonitor?channel=1&subtype=1\",
-            \"audio\": 0
+            "endpoint": "rtsp://admin:Dahua12345@192.168.1.104:554/cam/realmonitor?channel=1&subtype=1",
+            "audio": 0
         }
     ]
 }
 EOCONFIG
 
-        # Asignar permisos correctos (propietario:usuario del servicio, legible por el grupo)
-        echo "Estableciendo permisos para \${CONFIG_FILE}..."
-        chown \${SERVICE_USER}:\${SERVICE_GROUP} "\${CONFIG_FILE}"
-        chmod 640 "\${CONFIG_FILE}" # rw-r-----
+        echo "Estableciendo permisos para $CONFIG_FILE..."
+        # Corregido: Usar comillas
+        chown "${SERVICE_USER}:${SERVICE_GROUP}" "$CONFIG_FILE"
+        chmod 640 "$CONFIG_FILE"
     fi
 
     echo "Recargando systemd daemon..."
     systemctl daemon-reload
     echo "Habilitando servicio ${PACKAGE_NAME}..."
     systemctl enable ${PACKAGE_NAME}.service
-    # Intentar reiniciar el servicio para aplicar cambios de configuración
-    # Usamos restart en lugar de start por si ya estaba corriendo tras una actualización
     echo "Reiniciando servicio ${PACKAGE_NAME}..."
     systemctl restart ${PACKAGE_NAME}.service || true
 fi
@@ -169,7 +164,7 @@ EOF
 cat << EOF > "${BUILD_DIR}/DEBIAN/prerm"
 #!/bin/bash
 set -e
-if [ "\$1" = "remove" ] || [ "\$1" = "upgrade" ]; then
+if [ "$1" = "remove" ] || [ "$1" = "upgrade" ]; then
     echo "Stopping ${PACKAGE_NAME} service..."
     systemctl stop ${PACKAGE_NAME}.service || true
     echo "Disabling ${PACKAGE_NAME} service..."
@@ -182,7 +177,7 @@ EOF
 cat << EOF > "${BUILD_DIR}/DEBIAN/postrm"
 #!/bin/bash
 set -e
-if [ "\$1" = "purge" ] || [ "\$1" = "remove" ]; then
+if [ "$1" = "purge" ] || [ "$1" = "remove" ]; then
      echo "Reloading systemd daemon after removal..."
      systemctl daemon-reload || true
 fi
