@@ -12,6 +12,8 @@
   "license": "ISC",
   "dependencies": {
     "axios": "^0.24.0",
-    "debug": "^4.3.2"
+    "debug": "^4.3.2",
+    "express": "^5.1.0",
+    "ws": "^8.18.1"
   }
 }

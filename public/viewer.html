@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ATUS Camera Viewer (Grid)</title>
+    <style>
+        html,
+        body {
+            height: 100%;
+            width: 100%;
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            /* Evita scrollbars */
+            background-color: #111;
+            color: #eee;
+            font-family: sans-serif;
+        }
+
+        #viewer-container {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            /* 2 columnas */
+            grid-template-rows: repeat(2, 1fr);
+            /* 2 filas */
+            width: 100%;
+            height: 100%;
+            gap: 4px;
+            /* Pequeño espacio entre cámaras */
+            background-color: #333;
+            position: relative;
+            /* Para posicionar botones */
+        }
+
+        .camera-slot {
+            background-color: #000;
+            position: relative;
+            /* Para overlay */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+        }
+
+        .camera-slot img {
+            display: block;
+            max-width: 100%;
+            max-height: 100%;
+            /* Revertir a contain */
+            object-fit: contain;
+            /* Mantiene aspect ratio, puede dejar barras */
+            /* width: 100%; */
+            /* No son estrictamente necesarios con contain en flexbox */
+            /* height: 100%; */
+        }
+
+        .status-overlay {
+            position: absolute;
+            bottom: 5px;
+            left: 5px;
+            background-color: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 3px 8px;
+            font-size: 0.8em;
+            border-radius: 4px;
+            z-index: 10;
+        }
+
+        /* Clases de estado (igual que antes) */
+        .status-connecting {
+            color: orange;
+        }
+
+        .status-connected {
+            color: lightgreen;
+        }
+
+        .status-error {
+            color: red;
+        }
+
+        .status-nosignal {
+            color: yellow;
+        }
+
+        .status-empty {
+            color: #aaa;
+            background-color: transparent !important;
+        }
+
+        /* Botones de Navegación */
+        .nav-button {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            background-color: rgba(0, 0, 0, 0.5);
+            color: white;
+            border: none;
+            font-size: 2em;
+            padding: 10px;
+            cursor: pointer;
+            z-index: 20;
+            border-radius: 5px;
+            display: none;
+            /* Ocultos por defecto */
+        }
+
+        .nav-button:hover {
+            background-color: rgba(0, 0, 0, 0.8);
+        }
+
+        .nav-button:disabled {
+            opacity: 0.3;
+            cursor: default;
+        }
+
+        #prev-button {
+            left: 10px;
+        }
+
+        #next-button {
+            right: 10px;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="viewer-container">
+        <div class="camera-slot" id="slot-0">
+            <img src="" alt="Camera 1">
+            <div class="status-overlay status-empty">Slot 1</div>
+        </div>
+        <div class="camera-slot" id="slot-1">
+            <img src="" alt="Camera 2">
+            <div class="status-overlay status-empty">Slot 2</div>
+        </div>
+        <div class="camera-slot" id="slot-2">
+            <img src="" alt="Camera 3">
+            <div class="status-overlay status-empty">Slot 3</div>
+        </div>
+        <div class="camera-slot" id="slot-3">
+            <img src="" alt="Camera 4">
+            <div class="status-overlay status-empty">Slot 4</div>
+        </div>
+
+        <button class="nav-button" id="prev-button" disabled>&lt;</button>
+        <button class="nav-button" id="next-button" disabled>&gt;</button>
+    </div>
+
+    <script>
+        // --- WebSocket y Lógica --- 
+        const gridContainer = document.getElementById('viewer-container');
+        const cameraSlots = Array.from(gridContainer.querySelectorAll('.camera-slot'));
+        const prevButton = document.getElementById('prev-button');
+        const nextButton = document.getElementById('next-button');
+
+        let ws = null;
+        let allCameras = [];
+        let currentSubscriptions = {}; // { "cameraName": slotIndex }
+        let slotAssignments = {}; // { slotIndex: "cameraName" }
+        let currentPage = 1;
+        let totalPages = 1;
+        let lastFrameTime = {}; // { "cameraName": timestamp }
+        const NO_SIGNAL_THRESHOLD = 5000;
+        let signalCheckIntervals = {}; // { "cameraName": intervalId }
+
+        function getSlotElements(slotIndex) {
+            const slotDiv = cameraSlots[slotIndex];
+            if (!slotDiv) return null;
+            return {
+                div: slotDiv,
+                img: slotDiv.querySelector('img'),
+                status: slotDiv.querySelector('.status-overlay')
+            };
+        }
+
+        function setSlotStatus(slotIndex, message, className = '') {
+            const elements = getSlotElements(slotIndex);
+            if (elements && elements.status) {
+                elements.status.textContent = message;
+                elements.status.className = `status-overlay status-${className}`;
+            }
+        }
+
+        function connectWebSocket() {
+            const wsPort = 8080; // Puerto fijo del backend
+            const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsUrl = `${wsProtocol}//${window.location.hostname}:${wsPort}`;
+            console.log(`Attempting to connect to ${wsUrl}`);
+            cameraSlots.forEach((_, i) => setSlotStatus(i, 'Connecting...', 'connecting'));
+
+            if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) return;
+
+            ws = new WebSocket(wsUrl);
+
+            ws.onopen = () => {
+                console.log('WebSocket connected');
+                // El backend enviará available_cameras automáticamente
+                cameraSlots.forEach((_, i) => {
+                    const assignedCam = slotAssignments[i];
+                    if (assignedCam) {
+                        setSlotStatus(i, `Connected. Waiting for ${assignedCam}`, 'connecting');
+                    } else {
+                        setSlotStatus(i, 'Connected. No camera assigned', 'empty');
+                    }
+                });
+            };
+
+            ws.onmessage = (event) => {
+                try {
+                    const message = JSON.parse(event.data);
+                    const camName = message.camera; // Nombre de la cámara del mensaje
+
+                    if (message.type === 'available_cameras') {
+                        allCameras = message.cameras || [];
+                        totalPages = Math.ceil(allCameras.length / 4);
+                        currentPage = 1; // Reset to first page
+                        displayPage(currentPage);
+                        updateNavButtons();
+                    } else if (message.type === 'subscribed') {
+                        const slotIndex = currentSubscriptions[camName];
+                        if (slotIndex !== undefined) {
+                            setSlotStatus(slotIndex, `Subscribed: ${camName}`, 'connected');
+                            lastFrameTime[camName] = Date.now();
+                            resetSignalCheck(camName, slotIndex);
+                        }
+                    } else if (message.type === 'unsubscribed') {
+                        // Normalmente no necesitamos hacer nada aquí, ya que la desuscripción
+                        // la iniciamos nosotros al cambiar de página.
+                        console.log('Unsubscribed from:', camName);
+                    } else if (message.type === 'frame') {
+                        const slotIndex = currentSubscriptions[camName];
+                        if (slotIndex !== undefined && slotAssignments[slotIndex] === camName) {
+                            const elements = getSlotElements(slotIndex);
+                            if (elements && elements.img) {
+                                elements.img.src = `data:image/jpeg;base64,${message.data}`;
+                                lastFrameTime[camName] = Date.now();
+                                // Solo actualizar status si no estaba ya conectado (evita parpadeo)
+                                if (!elements.status.className.includes('connected')) {
+                                    setSlotStatus(slotIndex, `Streaming: ${camName}`, 'connected');
+                                }
+                                resetSignalCheck(camName, slotIndex); // Reinicia timer al recibir frame
+                            }
+                        } // Ignorar frames de cámaras no suscritas actualmente
+                    } else if (message.type === 'error') {
+                        console.error('Server error:', message);
+                        const slotIndex = currentSubscriptions[camName];
+                        if (slotIndex !== undefined) {
+                            setSlotStatus(slotIndex, `Error: ${message.message || 'Stream error?'}`, 'error');
+                            stopSignalCheck(camName);
+                        }
+                    }
+                } catch (e) {
+                    console.error('Failed to process message:', event.data, e);
+                }
+            };
+
+            ws.onerror = (error) => {
+                console.error('WebSocket Error:', error);
+                cameraSlots.forEach((_, i) => setSlotStatus(i, 'Connection Error', 'error'));
+                stopAllSignalChecks();
+            };
+
+            ws.onclose = (event) => {
+                console.log('WebSocket closed:', event.code, event.reason);
+                cameraSlots.forEach((_, i) => setSlotStatus(i, 'Disconnected', 'error'));
+                ws = null;
+                currentSubscriptions = {};
+                slotAssignments = {};
+                stopAllSignalChecks();
+                setTimeout(connectWebSocket, 5000); // Reintentar conexión
+            };
+        }
+
+        function displayPage(page) {
+            console.log(`Displaying page ${page}`);
+            const startIndex = (page - 1) * 4;
+            const camerasForPage = allCameras.slice(startIndex, startIndex + 4);
+
+            const newAssignments = {}; // { slotIndex: cameraName }
+            camerasForPage.forEach((camName, index) => {
+                newAssignments[index] = camName;
+            });
+
+            // Determinar suscripciones a añadir y quitar
+            const requiredSubscriptions = new Set(camerasForPage);
+            const subscriptionsToRemove = new Set();
+            const subscriptionsToAdd = new Set(camerasForPage);
+
+            Object.keys(currentSubscriptions).forEach(subscribedCam => {
+                if (!requiredSubscriptions.has(subscribedCam)) {
+                    subscriptionsToRemove.add(subscribedCam);
+                }
+                subscriptionsToAdd.delete(subscribedCam); // No añadir si ya está suscrito
+            });
+
+            // 1. Limpiar slots y desuscribir de cámaras antiguas
+            cameraSlots.forEach((slot, slotIndex) => {
+                const oldCamName = slotAssignments[slotIndex];
+                const newCamName = newAssignments[slotIndex]; // Puede ser undefined
+                const elements = getSlotElements(slotIndex);
+
+                if (oldCamName && oldCamName !== newCamName) {
+                    // Si la cámara que estaba aquí ya no está en la página actual Y 
+                    // no se necesita en otro slot de esta página (esto último es implícito 
+                    // porque limpiamos las suscripciones que ya no se necesitan globalmente)
+                    if (subscriptionsToRemove.has(oldCamName)) {
+                        unsubscribeFromCamera(oldCamName);
+                    }
+                }
+
+                // Limpiar visualmente el slot si no hay cámara asignada o es diferente
+                if (oldCamName !== newCamName) {
+                    if (elements) {
+                        elements.img.src = '';
+                        elements.div.dataset.cameraName = newCamName || ''; // Asignar nuevo nombre (o vacío)
+                        if (newCamName) {
+                            setSlotStatus(slotIndex, `Assigning: ${newCamName}`, 'connecting');
+                        } else {
+                            setSlotStatus(slotIndex, 'Slot Empty', 'empty');
+                            delete slotAssignments[slotIndex]; // Quitar asignación
+                            stopSignalCheck(oldCamName); // Detener chequeo si había cámara
+                        }
+                    }
+                }
+                // Actualizar asignación para la lógica de recepción de frames
+                if (newCamName) {
+                    slotAssignments[slotIndex] = newCamName;
+                } else {
+                    delete slotAssignments[slotIndex];
+                }
+            });
+
+            // 2. Suscribir a nuevas cámaras necesarias para esta página
+            subscriptionsToAdd.forEach(camName => {
+                subscribeToCamera(camName); // La suscripción se manejará en onmessage
+            });
+
+            currentPage = page;
+            updateNavButtons();
+        }
+
+        function subscribeToCamera(cameraName) {
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                console.log(`Requesting subscription to ${cameraName}`);
+                ws.send(JSON.stringify({ action: 'subscribe', cameraName: cameraName }));
+                // Asociar cámara con slot (el onmessage lo confirmará)
+                // Encontrar el primer slot asignado a esta cámara en la página actual
+                const slotIndex = Object.keys(slotAssignments).find(idx => slotAssignments[idx] === cameraName);
+                if (slotIndex !== undefined) {
+                    currentSubscriptions[cameraName] = parseInt(slotIndex, 10);
+                    setSlotStatus(slotIndex, `Subscribing to ${cameraName}...`, 'connecting');
+                } else {
+                    console.warn(`Camera ${cameraName} requested but not assigned to a slot on page ${currentPage}`);
+                }
+            } else {
+                console.warn('Cannot subscribe, WebSocket not open.');
+            }
+        }
+
+        function unsubscribeFromCamera(cameraName) {
+            if (ws && ws.readyState === WebSocket.OPEN && currentSubscriptions[cameraName] !== undefined) {
+                console.log(`Requesting unsubscription from ${cameraName}`);
+                ws.send(JSON.stringify({ action: 'unsubscribe', cameraName: cameraName }));
+                delete currentSubscriptions[cameraName];
+                stopSignalCheck(cameraName);
+            }
+        }
+
+        function updateNavButtons() {
+            if (totalPages <= 1) {
+                prevButton.style.display = 'none';
+                nextButton.style.display = 'none';
+            } else {
+                prevButton.style.display = 'block';
+                nextButton.style.display = 'block';
+                prevButton.disabled = (currentPage <= 1);
+                nextButton.disabled = (currentPage >= totalPages);
+            }
+        }
+
+        function resetSignalCheck(cameraName, slotIndex) {
+            stopSignalCheck(cameraName); // Limpiar timer anterior
+            if (!cameraName) return;
+
+            signalCheckIntervals[cameraName] = setTimeout(() => {
+                if (Date.now() - (lastFrameTime[cameraName] || 0) > NO_SIGNAL_THRESHOLD) {
+                    setSlotStatus(slotIndex, `No signal: ${cameraName}`, 'nosignal');
+                    // Considerar si limpiar la imagen aquí o no
+                    // const elements = getSlotElements(slotIndex);
+                    // if (elements) elements.img.src = '';
+                }
+                // No necesita re-programarse a sí mismo como antes, 
+                // porque resetSignalCheck se llama cada vez que llega un frame.
+                // Solo necesitamos este timeout para detectar la *ausencia* de frames.
+            }, NO_SIGNAL_THRESHOLD);
+        }
+
+        function stopSignalCheck(cameraName) {
+            if (cameraName && signalCheckIntervals[cameraName]) {
+                clearTimeout(signalCheckIntervals[cameraName]);
+                delete signalCheckIntervals[cameraName];
+            }
+        }
+        function stopAllSignalChecks() {
+            Object.keys(signalCheckIntervals).forEach(stopSignalCheck);
+        }
+
+        // --- Event Listeners --- 
+        prevButton.addEventListener('click', () => {
+            if (currentPage > 1) {
+                displayPage(currentPage - 1);
+            }
+        });
+
+        nextButton.addEventListener('click', () => {
+            if (currentPage < totalPages) {
+                displayPage(currentPage + 1);
+            }
+        });
+
+        // --- Initial Load --- 
+        connectWebSocket();
+
+    </script>
+</body>
+
+</html>

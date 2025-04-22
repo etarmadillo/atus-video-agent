@@ -104,7 +104,7 @@ CONFIG_FILE="${APP_INSTALL_DIR}/config.txt"
 PACKAGE_NAME="${PACKAGE_NAME}"
 
 # --- Línea de depuración (mantenerla por ahora) --- 
-echo "DEBUG: CONFIG_FILE is '\$CONFIG_FILE'"
+echo "DEBUG: CONFIG_FILE is \'\$CONFIG_FILE\'"
 
 config_generated=false
 # --- Siempre verificar si config.txt existe y generarlo si falta ---
@@ -124,6 +124,11 @@ if [ ! -f "\$CONFIG_FILE" ]; then
 loginEndpoint=https://atus.etarmadillo.com/login
 streamEndpoint=rtmp://atus.etarmadillo.com:1935/live/
 plate=\$PLATE_NUMBER
+
+# Recorder Settings
+recording_segment_time=600 # Default to 10 minutes
+# recording_output_dir=/mnt/recordings # Example: Uncomment and set if needed
+
 # Sources (parsed by index.js)
 source_1_endpoint=rtsp://admin:Dahua12345@192.168.1.101:554/cam/realmonitor?channel=1&subtype=1
 source_1_audio=0
