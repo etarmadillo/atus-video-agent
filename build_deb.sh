@@ -100,48 +100,42 @@ set -e
 APP_INSTALL_DIR="${APP_INSTALL_DIR}"
 SERVICE_USER="${SERVICE_USER}"
 SERVICE_GROUP="${SERVICE_GROUP}"
-# Corregido: No escapar $, expandir APP_INSTALL_DIR ahora.
 CONFIG_FILE="${APP_INSTALL_DIR}/config.json"
 PACKAGE_NAME="${PACKAGE_NAME}"
 
+# --- Línea de depuración --- 
+echo "DEBUG: CONFIG_FILE is '$CONFIG_FILE'"
+
 config_generated=false
 # --- Siempre verificar si config.json existe y generarlo si falta ---
-# Corregido: Usar \\$CONFIG_FILE y añadir comillas dobles escapadas \\"
-if [ ! -f "\\"$CONFIG_FILE\\"" ]; then
-    echo "Configuración no encontrada en \\"$CONFIG_FILE\\". Generando..."
+if [ ! -f "$CONFIG_FILE" ]; then
+    echo "Configuración no encontrada en $CONFIG_FILE. Generando..."
     if [ -t 0 ]; then
-        # Usar \\$PLATE_NUMBER para la variable leída en la Pi
         read -p "Introduce el número de placa para este vehículo: " PLATE_NUMBER
 
-        # Corregido: Usar \\$PLATE_NUMBER con comillas dobles escapadas \\"
-        if [ -z "\\"$PLATE_NUMBER\\"" ]; then
+        if [ -z "$PLATE_NUMBER" ]; then
             echo "Error: El número de placa no puede estar vacío." >&2
             exit 1
         fi
 
-        # Corregido: Usar \\$CONFIG_FILE y \\$PLATE_NUMBER con comillas dobles escapadas \\"
-        echo "Generando \\"$CONFIG_FILE\\" con placa: \\"$PLATE_NUMBER\\"..."
-        # Corregido: Usar \\"$CONFIG_FILE\\" en la redirección
-        # Usamos EOCONFIG sin comillas para permitir la expansión de \\$PLATE_NUMBER en la Pi
-        cat << EOCONFIG > "\\"$CONFIG_FILE\\""
+        echo "Generando $CONFIG_FILE con placa: $PLATE_NUMBER..."
+        cat << EOCONFIG > "$CONFIG_FILE"
 {
-    \\"loginEndpoint\\": \\"https://atus.etarmadillo.com/login\\",
-    \\"streamEndpoint\\": \\"rtmp://atus.etarmadillo.com:1935/live/\\",
-    \\"plate\\": \\"\\$PLATE_NUMBER\\",
-    \\"sources\\": [
-        { \\"endpoint\\": \\"rtsp://admin:Dahua12345@192.168.1.101:554/cam/realmonitor?channel=1&subtype=1\\", \\"audio\\": 0 },
-        { \\"endpoint\\": \\"rtsp://admin:Dahua12345@192.168.1.102:554/cam/realmonitor?channel=1&subtype=1\\", \\"audio\\": 0 },
-        { \\"endpoint\\": \\"rtsp://admin:Dahua12345@192.168.1.103:554/cam/realmonitor?channel=1&subtype=1\\", \\"audio\\": 0 },
-        { \\"endpoint\\": \\"rtsp://admin:Dahua12345@192.168.1.104:554/cam/realmonitor?channel=1&subtype=1\\", \\"audio\\": 0 }
+    "loginEndpoint": "https://atus.etarmadillo.com/login",
+    "streamEndpoint": "rtmp://atus.etarmadillo.com:1935/live/",
+    "plate": "$PLATE_NUMBER",
+    "sources": [
+        { "endpoint": "rtsp://admin:Dahua12345@192.168.1.101:554/cam/realmonitor?channel=1&subtype=1", "audio": 0 },
+        { "endpoint": "rtsp://admin:Dahua12345@192.168.1.102:554/cam/realmonitor?channel=1&subtype=1", "audio": 0 },
+        { "endpoint": "rtsp://admin:Dahua12345@192.168.1.103:554/cam/realmonitor?channel=1&subtype=1", "audio": 0 },
+        { "endpoint": "rtsp://admin:Dahua12345@192.168.1.104:554/cam/realmonitor?channel=1&subtype=1", "audio": 0 }
     ]
 }
 EOCONFIG
 
-        # Corregido: Usar \\$CONFIG_FILE con comillas dobles escapadas \\"
-        echo "Estableciendo permisos para \\"$CONFIG_FILE\\"..."
-        # Usar \\$SERVICE_USER, \\$SERVICE_GROUP y \\$CONFIG_FILE con comillas escapadas
-        chown "\\${SERVICE_USER}:\\${SERVICE_GROUP}" "\\"$CONFIG_FILE\\""
-        chmod 640 "\\"$CONFIG_FILE\\""
+        echo "Estableciendo permisos para $CONFIG_FILE..."
+        chown "${SERVICE_USER}:${SERVICE_GROUP}" "$CONFIG_FILE"
+        chmod 640 "$CONFIG_FILE"
         config_generated=true
     else
         echo "Advertencia: No se puede pedir el número de placa (no hay terminal interactiva)." >&2
@@ -152,51 +146,47 @@ fi
 
 restart_needed=false
 # --- Acciones específicas de configuración/actualización ---
-# Usar \\$1 con comillas escapadas
-if [ "\\"$1\\"" = "configure" ] || [ "\\"$1\\"" = "upgrade" ]; then
+if [ "$1" = "configure" ] || [ "$1" = "upgrade" ]; then
     echo "Recargando systemd daemon..."
     systemctl daemon-reload
-    # Usar \\$PACKAGE_NAME
-    echo "Habilitando servicio \\${PACKAGE_NAME}..."
-    systemctl enable \\${PACKAGE_NAME}.service
+    echo "Habilitando servicio ${PACKAGE_NAME}..."
+    systemctl enable ${PACKAGE_NAME}.service
     restart_needed=true
 fi
 
 # Reiniciar si se generó la config O si estamos en configure/upgrade
-# Usar \\$config_generated y \\$restart_needed escapados
-if [ "\\$config_generated" = true ] || [ "\\$restart_needed" = true ]; then
-    # Usar \\$PACKAGE_NAME
-    echo "Reiniciando servicio \\${PACKAGE_NAME}..."
-    systemctl restart \\${PACKAGE_NAME}.service || true
+if [ "$config_generated" = true ] || [ "$restart_needed" = true ]; then
+    echo "Reiniciando servicio ${PACKAGE_NAME}..."
+    systemctl restart ${PACKAGE_NAME}.service || true
 fi
 
 exit 0
 EOF
 
 # prerm (Antes de quitar)
-# Corregido: Usar EOF sin comillas simples, escapar \\$1
+# Corregido: Usar EOF sin comillas simples, escapar \$1
 cat << EOF > "${BUILD_DIR}/DEBIAN/prerm"
 #!/bin/bash
 set -e
 # PACKAGE_NAME es expandido AHORA por build_deb.sh
 PACKAGE_NAME="${PACKAGE_NAME}"
-# \\$1 se evalúa en la Pi
-if [ "\\$1" = "remove" ] || [ "\\$1" = "upgrade" ]; then
-    echo "Stopping \\${PACKAGE_NAME} service..."
-    systemctl stop \\${PACKAGE_NAME}.service || true
-    echo "Disabling \\${PACKAGE_NAME} service..."
-    systemctl disable \\${PACKAGE_NAME}.service || true
+# \$1 se evalúa en la Pi
+if [ "$1" = "remove" ] || [ "$1" = "upgrade" ]; then
+    echo "Stopping ${PACKAGE_NAME} service..."
+    systemctl stop ${PACKAGE_NAME}.service || true
+    echo "Disabling ${PACKAGE_NAME} service..."
+    systemctl disable ${PACKAGE_NAME}.service || true
 fi
 exit 0
 EOF
 
 # postrm (Después de quitar)
-# Corregido: Usar EOF sin comillas simples, escapar \\$1
+# Corregido: Usar EOF sin comillas simples, escapar \$1
 cat << EOF > "${BUILD_DIR}/DEBIAN/postrm"
 #!/bin/bash
 set -e
-# \\$1 se evalúa en la Pi
-if [ "\\$1" = "purge" ] || [ "\\$1" = "remove" ]; then
+# \$1 se evalúa en la Pi
+if [ "$1" = "purge" ] || [ "$1" = "remove" ]; then
      echo "Reloading systemd daemon after removal..."
      systemctl daemon-reload || true
 fi
