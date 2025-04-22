@@ -49,7 +49,7 @@ La instalación configurará e iniciará automáticamente el servicio `systemd`.
 
 **(Opcional) Una vez confirmada la instalación, puedes eliminar el archivo `.deb` descargado para liberar espacio:**
 ```bash
-rm ./atus-video-agent_1.0.0_arm64.deb # Reemplaza con el nombre del archivo descargado
+rm ./atus-video-agent_arm64.deb # Reemplaza con el nombre del archivo descargado
 ```
 
 ## Configuración
