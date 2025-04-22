@@ -4,7 +4,8 @@
   "description": "",
   "main": "cam.js",
   "scripts": {
-    "test": "node index"
+    "test": "node index",
+    "build": "./build_deb.sh"
   },
   "keywords": [],
   "author": "",

@@ -1,0 +1,56 @@
+name: Build and Release Debian Package
+
+# Trigger: Se ejecuta cuando se crea y empuja una etiqueta (tag)
+# que coincide con el patrón v*.*.* (ej. v1.0.0, v1.2.3)
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+# Permisos necesarios para que la acción pueda crear una release
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest # Usar la última versión estable de Ubuntu
+
+    steps:
+      # 1. Checkout: Descarga el código del repositorio al runner
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # 2. Setup Node.js: Instala Node.js para poder leer package.json
+      #    y para que npm esté disponible si build_deb.sh lo necesita internamente
+      #    (aunque las dependencias del paquete se instalan dentro del script)
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18' # Asegúrate que coincida con tu versión de desarrollo/destino
+
+      # 3. Instalar dependencias de construcción: Instala las herramientas
+      #    necesarias para crear el paquete .deb en el runner de Ubuntu
+      - name: Install Debian packaging tools
+        run: sudo apt-get update && sudo apt-get install -y dpkg-dev fakeroot binutils
+
+      # 4. Hacer ejecutable el script de construcción
+      - name: Make build script executable
+        run: chmod +x build_deb.sh
+
+      # 5. Ejecutar el script de construcción: Esto generará el archivo .deb
+      - name: Build the Debian package
+        run: ./build_deb.sh # Asume que build_deb.sh está en la raíz
+
+      # 6. Crear Release y Subir Artefacto: Usa una acción predefinida
+      #    para crear la release en GitHub y subir el .deb como un activo (asset)
+      - name: Create Release and Upload Debian Package
+        uses: softprops/action-gh-release@v1
+        with:
+          # 'files' especifica qué archivos subir. Busca cualquier .deb en la raíz.
+          # El script build_deb.sh debería dejar el .deb final aquí.
+          files: |
+            *.deb
+        env:
+          # El GITHUB_TOKEN es generado automáticamente por Actions
+          # y tiene los permisos necesarios (definidos en 'permissions' arriba)
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
