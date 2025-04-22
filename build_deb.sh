@@ -44,7 +44,7 @@ cp camera.js "${BUILD_DIR}${APP_INSTALL_DIR}/"
 cp package.json "${BUILD_DIR}${APP_INSTALL_DIR}/"
 cp package-lock.json "${BUILD_DIR}${APP_INSTALL_DIR}/"
 # Si tienes otros archivos/directorios (ej. config, assets), cópialos aquí:
-# cp config.json "${BUILD_DIR}${APP_INSTALL_DIR}/"
+cp config.json "${BUILD_DIR}${APP_INSTALL_DIR}/"
 # cp -r assets/ "${BUILD_DIR}${APP_INSTALL_DIR}/"
 
 echo "--- Instalando dependencias de producción dentro de la estructura ---"
