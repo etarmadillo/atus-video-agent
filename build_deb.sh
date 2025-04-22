@@ -26,7 +26,7 @@ APP_INSTALL_DIR="${INSTALL_DIR_BASE}/${PACKAGE_NAME}"
 # Directorio temporal para construir la estructura del paquete
 BUILD_DIR="${PACKAGE_NAME}_deb_build"
 # Nombre final del paquete .deb
-DEB_FILENAME="${PACKAGE_NAME}_${ARCHITECTURE}.deb"
+DEB_FILENAME="${PACKAGE_NAME}_${PACKAGE_VERSION}_${ARCHITECTURE}.deb"
 
 echo "--- Limpiando entorno anterior ---"
 rm -rf "$BUILD_DIR" "$DEB_FILENAME"
@@ -34,17 +34,28 @@ rm -rf "$BUILD_DIR" "$DEB_FILENAME"
 echo "--- Creando estructura de directorios para ${PACKAGE_NAME} v${PACKAGE_VERSION} ---"
 mkdir -p "${BUILD_DIR}/DEBIAN"
 mkdir -p "${BUILD_DIR}${APP_INSTALL_DIR}"
+mkdir -p "${BUILD_DIR}${APP_INSTALL_DIR}/public"
 mkdir -p "${BUILD_DIR}/lib/systemd/system"
 
 echo "--- Copiando archivos de la aplicación ---"
-# Copia los archivos necesarios. ¡Asegúrate de incluir todo lo que tu app necesita!
-# Excluye node_modules del host, directorios .git, etc.
+# Copia los archivos necesarios.
 cp index.js "${BUILD_DIR}${APP_INSTALL_DIR}/"
-cp camera.js "${BUILD_DIR}${APP_INSTALL_DIR}/"
+# cp camera.js "${BUILD_DIR}${APP_INSTALL_DIR}/" # Eliminado
+cp config.js "${BUILD_DIR}${APP_INSTALL_DIR}/"
+cp configLoader.js "${BUILD_DIR}${APP_INSTALL_DIR}/"
 cp package.json "${BUILD_DIR}${APP_INSTALL_DIR}/"
 cp package-lock.json "${BUILD_DIR}${APP_INSTALL_DIR}/"
+cp config.txt "${BUILD_DIR}${APP_INSTALL_DIR}/" # Copiar config.txt base
+
+# Copiar directorio de servicios recursivamente
+echo "Copiando directorio services..."
+cp -r services/ "${BUILD_DIR}${APP_INSTALL_DIR}/"
+
+# Copiar archivos públicos
+echo "Copiando archivos públicos..."
+cp public/viewer.html "${BUILD_DIR}${APP_INSTALL_DIR}/public/"
+
 # Si tienes otros archivos/directorios (ej. config, assets), cópialos aquí:
-# cp config.json "${BUILD_DIR}${APP_INSTALL_DIR}/" # Comentado: Se generará en postinst
 # cp -r assets/ "${BUILD_DIR}${APP_INSTALL_DIR}/"
 
 echo "--- Instalando dependencias de producción dentro de la estructura ---"
