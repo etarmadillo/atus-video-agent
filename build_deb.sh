@@ -100,14 +100,14 @@ set -e
 APP_INSTALL_DIR="${APP_INSTALL_DIR}"
 SERVICE_USER="${SERVICE_USER}"
 SERVICE_GROUP="${SERVICE_GROUP}"
-CONFIG_FILE="${APP_INSTALL_DIR}/config.json"
+CONFIG_FILE="${APP_INSTALL_DIR}/config.txt"
 PACKAGE_NAME="${PACKAGE_NAME}"
 
 # --- Línea de depuración --- 
 echo "DEBUG: CONFIG_FILE is '$CONFIG_FILE'"
 
 config_generated=false
-# --- Siempre verificar si config.json existe y generarlo si falta ---
+# --- Siempre verificar si config.txt existe y generarlo si falta ---
 if [ ! -f "$CONFIG_FILE" ]; then
     echo "Configuración no encontrada en $CONFIG_FILE. Generando..."
     if [ -t 0 ]; then
@@ -119,19 +119,21 @@ if [ ! -f "$CONFIG_FILE" ]; then
         fi
 
         echo "Generando $CONFIG_FILE con placa: $PLATE_NUMBER..."
-        cat << EOCONFIG > "$CONFIG_FILE"
-{
-    "loginEndpoint": "https://atus.etarmadillo.com/login",
-    "streamEndpoint": "rtmp://atus.etarmadillo.com:1935/live/",
-    "plate": "$PLATE_NUMBER",
-    "sources": [
-        { "endpoint": "rtsp://admin:Dahua12345@192.168.1.101:554/cam/realmonitor?channel=1&subtype=1", "audio": 0 },
-        { "endpoint": "rtsp://admin:Dahua12345@192.168.1.102:554/cam/realmonitor?channel=1&subtype=1", "audio": 0 },
-        { "endpoint": "rtsp://admin:Dahua12345@192.168.1.103:554/cam/realmonitor?channel=1&subtype=1", "audio": 0 },
-        { "endpoint": "rtsp://admin:Dahua12345@192.168.1.104:554/cam/realmonitor?channel=1&subtype=1", "audio": 0 }
-    ]
-}
-EOCONFIG
+        cat << EOTXT > "$CONFIG_FILE"
+# Configuration for ATUS Video Agent
+loginEndpoint=https://atus.etarmadillo.com/login
+streamEndpoint=rtmp://atus.etarmadillo.com:1935/live/
+plate=$PLATE_NUMBER
+# Sources (parsed by index.js)
+source_1_endpoint=rtsp://admin:Dahua12345@192.168.1.101:554/cam/realmonitor?channel=1&subtype=1
+source_1_audio=0
+source_2_endpoint=rtsp://admin:Dahua12345@192.168.1.102:554/cam/realmonitor?channel=1&subtype=1
+source_2_audio=0
+source_3_endpoint=rtsp://admin:Dahua12345@192.168.1.103:554/cam/realmonitor?channel=1&subtype=1
+source_3_audio=0
+source_4_endpoint=rtsp://admin:Dahua12345@192.168.1.104:554/cam/realmonitor?channel=1&subtype=1
+source_4_audio=0
+EOTXT
 
         echo "Estableciendo permisos para $CONFIG_FILE..."
         chown "${SERVICE_USER}:${SERVICE_GROUP}" "$CONFIG_FILE"
@@ -139,7 +141,7 @@ EOCONFIG
         config_generated=true
     else
         echo "Advertencia: No se puede pedir el número de placa (no hay terminal interactiva)." >&2
-        echo "            Crea /opt/atus-video-agent/config.json manualmente." >&2
+        echo "            Crea /opt/atus-video-agent/config.txt manualmente con formato CLAVE=VALOR." >&2
     fi
 fi
 # --- Fin de la generación de config ---
